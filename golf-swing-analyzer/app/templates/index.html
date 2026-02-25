@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Golf Swing Analyzer (Local MVP)</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Golf Swing Analyzer</h1>
+      <p class="subhead">Local-only MVP. Upload a face-on swing video to get quick posture cues.</p>
+    </header>
+
+    <section class="card">
+      <form id="upload-form">
+        <label class="file-input">
+          <input type="file" id="video" name="video" accept="video/*" required />
+          <span>Select video</span>
+        </label>
+        <button type="submit" id="submit">Analyze swing</button>
+      </form>
+      <div id="status" class="status"></div>
+    </section>
+
+    <section class="card results" id="results" hidden>
+      <h2>Results</h2>
+      <div id="metrics" class="metrics"></div>
+      <h3>Tips</h3>
+      <ul id="tips" class="tips"></ul>
+    </section>
+
+    <section class="card note">
+      <h2>Notes</h2>
+      <ul>
+        <li>Best results from a face-on camera view with the full body in frame.</li>
+        <li>This is a prototype. It does not track the club yet.</li>
+        <li>All processing stays on your machine.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
