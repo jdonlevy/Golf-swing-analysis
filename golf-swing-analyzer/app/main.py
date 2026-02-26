@@ -12,11 +12,15 @@ from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from mediapipe import solutions as mp_solutions
+from mediapipe import Image, ImageFormat
+from mediapipe.tasks import python as mp_tasks
+from mediapipe.tasks.python import vision
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = os.path.join(APP_DIR, "templates")
 STATIC_DIR = os.path.join(APP_DIR, "static")
+MODELS_DIR = os.path.join(APP_DIR, "models")
+POSE_MODEL_PATH = os.path.join(MODELS_DIR, "pose_landmarker_full.task")
 
 app = FastAPI(title="Golf Swing Analyzer (Local MVP)")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -66,76 +70,90 @@ def extract_metrics(video_path: str) -> Optional[Tuple[List[FrameMetrics], float
     if not cap.isOpened():
         return None
 
+    if not os.path.exists(POSE_MODEL_PATH):
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Missing pose model. Download pose_landmarker_full.task and place it at "
+                f"{POSE_MODEL_PATH}."
+            ),
+        )
+
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
 
     # Sample frames to keep it fast on CPU.
     stride = max(1, total_frames // 120)
 
-    pose = mp_solutions.pose.Pose(
-        static_image_mode=False,
-        model_complexity=1,
-        enable_segmentation=False,
-        min_detection_confidence=0.5,
+    options = vision.PoseLandmarkerOptions(
+        base_options=mp_tasks.BaseOptions(model_asset_path=POSE_MODEL_PATH),
+        running_mode=vision.RunningMode.VIDEO,
+        num_poses=1,
+        min_pose_detection_confidence=0.5,
+        min_pose_presence_confidence=0.5,
         min_tracking_confidence=0.5,
     )
 
     frames: List[FrameMetrics] = []
     frame_index = 0
 
-    while True:
-        ok, frame = cap.read()
-        if not ok:
-            break
-        if frame_index % stride != 0:
-            frame_index += 1
-            continue
+    with vision.PoseLandmarker.create_from_options(options) as landmarker:
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+            if frame_index % stride != 0:
+                frame_index += 1
+                continue
 
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        result = pose.process(rgb)
-        if result.pose_landmarks is not None:
-            lm = result.pose_landmarks.landmark
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            mp_image = Image(image_format=ImageFormat.SRGB, data=rgb)
+            timestamp_ms = int(frame_index / fps * 1000)
+            result = landmarker.detect_for_video(mp_image, timestamp_ms)
 
-            left_shoulder = lm[mp_solutions.pose.PoseLandmark.LEFT_SHOULDER]
-            right_shoulder = lm[mp_solutions.pose.PoseLandmark.RIGHT_SHOULDER]
-            left_hip = lm[mp_solutions.pose.PoseLandmark.LEFT_HIP]
-            right_hip = lm[mp_solutions.pose.PoseLandmark.RIGHT_HIP]
-            left_wrist = lm[mp_solutions.pose.PoseLandmark.LEFT_WRIST]
-            right_wrist = lm[mp_solutions.pose.PoseLandmark.RIGHT_WRIST]
-            nose = lm[mp_solutions.pose.PoseLandmark.NOSE]
+            if result.pose_landmarks:
+                lm = result.pose_landmarks[0]
 
-            shoulder_angle_deg = line_angle_deg(
-                (left_shoulder.x, left_shoulder.y),
-                (right_shoulder.x, right_shoulder.y),
-            )
-            spine_angle_deg = spine_angle(
-                (left_shoulder.x, left_shoulder.y),
-                (right_shoulder.x, right_shoulder.y),
-                (left_hip.x, left_hip.y),
-                (right_hip.x, right_hip.y),
-            )
+                # Indices based on MediaPipe Pose landmark order.
+                nose = lm[0]
+                left_shoulder = lm[11]
+                right_shoulder = lm[12]
+                left_wrist = lm[15]
+                right_wrist = lm[16]
+                left_hip = lm[23]
+                right_hip = lm[24]
 
-            shoulder_width = math.hypot(
-                right_shoulder.x - left_shoulder.x,
-                right_shoulder.y - left_shoulder.y,
-            )
-            wrist_min_y = min(left_wrist.y, right_wrist.y)
-
-            frames.append(
-                FrameMetrics(
-                    frame_index=frame_index,
-                    shoulder_angle_deg=shoulder_angle_deg,
-                    spine_angle_deg=spine_angle_deg,
-                    nose=(nose.x, nose.y),
-                    shoulder_width=shoulder_width,
-                    wrist_min_y=wrist_min_y,
+                shoulder_angle_deg = line_angle_deg(
+                    (left_shoulder.x, left_shoulder.y),
+                    (right_shoulder.x, right_shoulder.y),
                 )
-            )
+                spine_angle_deg = spine_angle(
+                    (left_shoulder.x, left_shoulder.y),
+                    (right_shoulder.x, right_shoulder.y),
+                    (left_hip.x, left_hip.y),
+                    (right_hip.x, right_hip.y),
+                )
 
-        frame_index += 1
+                shoulder_width = math.hypot(
+                    right_shoulder.x - left_shoulder.x,
+                    right_shoulder.y - left_shoulder.y,
+                )
+                wrist_min_y = min(left_wrist.y, right_wrist.y)
+
+                frames.append(
+                    FrameMetrics(
+                        frame_index=frame_index,
+                        shoulder_angle_deg=shoulder_angle_deg,
+                        spine_angle_deg=spine_angle_deg,
+                        nose=(nose.x, nose.y),
+                        shoulder_width=shoulder_width,
+                        wrist_min_y=wrist_min_y,
+                    )
+                )
+
+            frame_index += 1
 
     cap.release()
-    pose.close()
 
     if not frames:
         return None

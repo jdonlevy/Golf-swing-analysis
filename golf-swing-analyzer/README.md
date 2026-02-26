@@ -10,10 +10,13 @@ Local-only web app to upload a golf swing video and get quick posture/tempo cues
 
 ## Setup
 ```bash
-cd /Users/james.donlevy/Codex/Codex-Test/golf-swing-analyzer
+cd /Users/james.donlevy/Codex/golf-swing-analyzer
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+mkdir -p /Users/james.donlevy/Codex/golf-swing-analyzer/app/models
+# Download the MediaPipe pose model and place it here:
+# /Users/james.donlevy/Codex/golf-swing-analyzer/app/models/pose_landmarker_full.task
 uvicorn app.main:app --reload --port 8001
 ```
 
