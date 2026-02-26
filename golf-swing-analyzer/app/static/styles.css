@@ -18,7 +18,12 @@ body {
   margin: 0;
   font-family: 'Manrope', sans-serif;
   color: var(--ink);
-  background: radial-gradient(circle at top left, #f0e3d2, var(--bg));
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(120deg, rgba(246, 241, 234, 0.92), rgba(246, 241, 234, 0.98)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 320 320'%3E%3Crect width='320' height='320' fill='%23f6f1ea'/%3E%3Ccircle cx='70' cy='80' r='36' fill='%23e9dccb'/%3E%3Ccircle cx='70' cy='80' r='30' fill='%23fdfbf8'/%3E%3Ccircle cx='62' cy='72' r='2.5' fill='%23c9b89c'/%3E%3Ccircle cx='78' cy='76' r='2.5' fill='%23c9b89c'/%3E%3Ccircle cx='66' cy='88' r='2.5' fill='%23c9b89c'/%3E%3Ccircle cx='84' cy='90' r='2.5' fill='%23c9b89c'/%3E%3Cpath d='M220 250 l20 -60' stroke='%232d6a4f' stroke-width='6' stroke-linecap='round'/%3E%3Ccircle cx='240' cy='186' r='6' fill='%232d6a4f'/%3E%3Crect x='205' y='250' width='32' height='8' rx='4' fill='%23c9b89c'/%3E%3Ccircle cx='260' cy='60' r='28' fill='%23e9dccb'/%3E%3Ccircle cx='260' cy='60' r='23' fill='%23fdfbf8'/%3E%3Ccircle cx='252' cy='52' r='2.2' fill='%23c9b89c'/%3E%3Ccircle cx='268' cy='56' r='2.2' fill='%23c9b89c'/%3E%3Ccircle cx='256' cy='70' r='2.2' fill='%23c9b89c'/%3E%3Ccircle cx='274' cy='72' r='2.2' fill='%23c9b89c'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 320px 320px;
 }
 
 .container {
